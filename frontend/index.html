@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Language Converter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── CSS Reset & Variables ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0c10;
+      --surface:   #111318;
+      --surface2:  #181b22;
+      --border:    rgba(255,255,255,0.07);
+      --border-h:  rgba(99,179,237,0.4);
+      --text:      #e8eaf0;
+      --muted:     #6b7280;
+      --accent:    #63b3ed;
+      --accent2:   #9f7aea;
+      --success:   #68d391;
+      --error:     #fc8181;
+      --glow:      rgba(99,179,237,0.15);
+      --font:      'Sora', sans-serif;
+      --mono:      'JetBrains Mono', monospace;
+      --radius:    14px;
+      --radius-sm: 8px;
+    }
+
+    /* ─── Base ──────────────────────────────────────────────────── */
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      overflow-x: hidden;
+    }
+
+    /* ─── Background grid ───────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(99,179,237,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99,179,237,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── Ambient blobs ─────────────────────────────────────────── */
+    body::after {
+      content: '';
+      position: fixed;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(99,179,237,0.06) 0%, transparent 70%);
+      top: -200px;
+      right: -200px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── Card ──────────────────────────────────────────────────── */
+    .card {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 780px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 48px 48px 40px;
+      box-shadow:
+        0 0 0 1px rgba(99,179,237,0.04),
+        0 32px 80px rgba(0,0,0,0.6),
+        0 0 120px rgba(99,179,237,0.04);
+      animation: fadeUp 0.5s cubic-bezier(0.22,1,0.36,1) both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Header ────────────────────────────────────────────────── */
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: rgba(99,179,237,0.08);
+      border: 1px solid rgba(99,179,237,0.18);
+      border-radius: 100px;
+      padding: 5px 14px;
+      margin-bottom: 16px;
+    }
+
+    .badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    h1 {
+      font-size: clamp(26px, 4vw, 36px);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #e8eaf0 0%, #63b3ed 60%, #9f7aea 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    /* ─── Language Selector Row ─────────────────────────────────── */
+    .lang-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .lang-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    select {
+      width: 100%;
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 11px 16px;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 500;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    select:focus {
+      border-color: var(--border-h);
+      box-shadow: 0 0 0 3px var(--glow);
+    }
+
+    select option { background: #1a1d24; }
+
+    /* ─── Arrow ─────────────────────────────────────────────────── */
+    .arrow-btn {
+      flex-shrink: 0;
+      margin-top: 20px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: rgba(99,179,237,0.08);
+      border: 1px solid rgba(99,179,237,0.2);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+      user-select: none;
+    }
+
+    .arrow-btn:hover {
+      background: rgba(99,179,237,0.18);
+      transform: scale(1.1);
+    }
+
+    .arrow-btn svg { pointer-events: none; }
+
+    /* ─── Textarea ──────────────────────────────────────────────── */
+    .textarea-wrap {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 130px;
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.6;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    textarea::placeholder { color: var(--muted); }
+
+    textarea:focus {
+      border-color: var(--border-h);
+      box-shadow: 0 0 0 3px var(--glow);
+    }
+
+    .char-count {
+      position: absolute;
+      bottom: 12px;
+      right: 16px;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    /* ─── Options Row ───────────────────────────────────────────── */
+    .options-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .tone-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .tone-pills {
+      display: flex;
+      gap: 8px;
+    }
+
+    .pill {
+      flex: 1;
+      text-align: center;
+      padding: 9px 16px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: var(--surface2);
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .pill:hover { border-color: var(--border-h); color: var(--text); }
+
+    .pill.active {
+      background: rgba(99,179,237,0.12);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .pill[data-tone="casual"].active {
+      background: rgba(159,122,234,0.12);
+      border-color: var(--accent2);
+      color: var(--accent2);
+    }
+
+    .tone-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+      padding-top: 20px;
+    }
+
+    /* Custom checkbox */
+    .tone-toggle input[type="checkbox"] {
+      display: none;
+    }
+
+    .toggle-track {
+      width: 38px;
+      height: 22px;
+      border-radius: 100px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      position: relative;
+      flex-shrink: 0;
+      transition: background 0.25s;
+    }
+
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: transform 0.25s, background 0.25s;
+    }
+
+    .tone-toggle input:checked ~ .toggle-track {
+      background: rgba(99,179,237,0.15);
+      border-color: var(--accent);
+    }
+
+    .tone-toggle input:checked ~ .toggle-track::after {
+      transform: translateX(16px);
+      background: var(--accent);
+    }
+
+    /* ─── Translate Button ──────────────────────────────────────── */
+    .btn-translate {
+      width: 100%;
+      padding: 15px 24px;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, #3a8fd1 0%, #6366f1 100%);
+      color: #fff;
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      border: none;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 24px rgba(99,179,237,0.2);
+      margin-bottom: 28px;
+    }
+
+    .btn-translate::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%);
+      transition: opacity 0.2s;
+    }
+
+    .btn-translate:hover { opacity: 0.92; transform: translateY(-1px); box-shadow: 0 8px 32px rgba(99,179,237,0.3); }
+    .btn-translate:active { transform: translateY(0); }
+    .btn-translate:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* ─── Loader ────────────────────────────────────────────────── */
+    .loader {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .loader.visible { display: flex; }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(99,179,237,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Output ────────────────────────────────────────────────── */
+    .output-section {
+      display: none;
+      flex-direction: column;
+      gap: 0;
+      animation: fadeUp 0.35s cubic-bezier(0.22,1,0.36,1) both;
+    }
+
+    .output-section.visible { display: flex; }
+
+    .output-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .output-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .copy-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .copy-btn:hover { color: var(--accent); border-color: var(--border-h); }
+
+    .output-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 20px 22px 18px;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--text);
+      min-height: 70px;
+      word-break: break-word;
+      position: relative;
+    }
+
+    /* ─── Pronunciation Box ──────────────────────────────────────── */
+    .pronunciation-wrap {
+      display: none;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .pronunciation-wrap.visible { display: flex; }
+
+    .pronunciation-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent2);
+      background: rgba(159,122,234,0.06);
+      border: 1px solid rgba(159,122,234,0.15);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      padding: 10px 22px 8px;
+    }
+
+    .pronunciation-label svg { opacity: 0.7; flex-shrink: 0; }
+
+    .pronunciation-text {
+      background: rgba(159,122,234,0.04);
+      border: 1px solid rgba(159,122,234,0.15);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      padding: 10px 22px 14px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+      color: rgba(200,185,240,0.85);
+      word-break: break-word;
+      letter-spacing: 0.02em;
+    }
+
+    /* ─── Error ─────────────────────────────────────────────────── */
+    .error-box {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: rgba(252,129,129,0.06);
+      border: 1px solid rgba(252,129,129,0.2);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      font-size: 13px;
+      color: var(--error);
+      margin-bottom: 16px;
+      animation: fadeUp 0.3s ease both;
+    }
+
+    .error-box.visible { display: flex; }
+
+    /* ─── Divider ───────────────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 28px 0;
+    }
+
+    /* ─── Responsive ────────────────────────────────────────────── */
+    @media (max-width: 580px) {
+      .card { padding: 32px 20px 28px; }
+      .lang-row { flex-wrap: wrap; }
+      .arrow-btn { margin-top: 0; transform: rotate(90deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="badge">AI-Powered</div>
+      <h1>Language Converter</h1>
+      <p class="subtitle">Translate across 6 Indian &amp; global languages with tone control</p>
+    </div>
+
+    <!-- Language Row -->
+    <div class="lang-row">
+      <div class="lang-group">
+        <label for="source-lang">From</label>
+        <select id="source-lang">
+          <option value="English">🇬🇧 English</option>
+          <option value="Tamil">Tamil</option>
+          <option value="Malayalam">Malayalam</option>
+          <option value="Kannada">Kannada</option>
+          <option value="Telugu">Telugu</option>
+          <option value="Hindi">Hindi</option>
+        </select>
+      </div>
+
+      <div class="arrow-btn" id="swap-btn" title="Swap languages">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 5.5h10M9 2.5l3 3-3 3M14 10.5H4M7 7.5l-3 3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+
+      <div class="lang-group">
+        <label for="target-lang">To</label>
+        <select id="target-lang">
+          <option value="Tamil">Tamil</option>
+          <option value="English">🇬🇧 English</option>
+          <option value="Malayalam">Malayalam</option>
+          <option value="Kannada">Kannada</option>
+          <option value="Telugu">Telugu</option>
+          <option value="Hindi">Hindi</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="textarea-wrap">
+      <textarea id="input-text" placeholder="Enter the text to translate…" maxlength="2000"></textarea>
+      <span class="char-count" id="char-count">0 / 2000</span>
+    </div>
+
+    <!-- Tone Options -->
+    <div class="options-row">
+      <div class="tone-group">
+        <label>Tone (optional)</label>
+        <div class="tone-pills">
+          <div class="pill" data-tone="formal">Formal</div>
+          <div class="pill" data-tone="casual">Casual</div>
+        </div>
+      </div>
+      <label class="tone-toggle" id="tone-toggle-label" title="Apply tone conversion after translation">
+        <input type="checkbox" id="use-tone" />
+        <span class="toggle-track"></span>
+        Apply tone conversion
+      </label>
+    </div>
+
+    <!-- Error -->
+    <div class="error-box" id="error-box">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3.5M8 11v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span id="error-msg">An error occurred.</span>
+    </div>
+
+    <!-- Button -->
+    <button class="btn-translate" id="translate-btn">Translate</button>
+
+    <!-- Loader -->
+    <div class="loader" id="loader">
+      <div class="spinner"></div>
+      <span>Translating with AI…</span>
+    </div>
+
+    <!-- Output -->
+    <div class="output-section" id="output-section">
+      <div class="divider"></div>
+      <div class="output-header">
+        <span class="output-label" id="output-label">Translation</span>
+        <button class="copy-btn" id="copy-btn">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="4.5" y="4.5" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 8.5V2A1 1 0 012 1.5h6.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          Copy
+        </button>
+      </div>
+      <div class="output-box" id="output-box"></div>
+      <!-- Pronunciation block (shown only when available) -->
+      <div class="pronunciation-wrap" id="pronunciation-wrap">
+        <div class="pronunciation-label">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v5M6 1C4.343 1 3 2.343 3 4v1M6 1c1.657 0 3 1.343 3 3v1M2 7c0 2.209 1.791 4 4 4s4-1.791 4-4M6 10v1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          Pronunciation (for reading):
+        </div>
+        <div class="pronunciation-text" id="pronunciation-text"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ─── State ────────────────────────────────────────────────────
+    const API_BASE = '';   // Same origin; or set to 'http://localhost:8000' for dev
+    let selectedTone = 'formal';
+
+    // ─── Elements ────────────────────────────────────────────────
+    const sourceLang        = document.getElementById('source-lang');
+    const targetLang        = document.getElementById('target-lang');
+    const inputText         = document.getElementById('input-text');
+    const charCount         = document.getElementById('char-count');
+    const useTone           = document.getElementById('use-tone');
+    const pills             = document.querySelectorAll('.pill');
+    const translateBtn      = document.getElementById('translate-btn');
+    const loader            = document.getElementById('loader');
+    const outputSection     = document.getElementById('output-section');
+    const outputBox         = document.getElementById('output-box');
+    const outputLabel       = document.getElementById('output-label');
+    const pronunciationWrap = document.getElementById('pronunciation-wrap');
+    const pronunciationText = document.getElementById('pronunciation-text');
+    const errorBox          = document.getElementById('error-box');
+    const errorMsg          = document.getElementById('error-msg');
+    const copyBtn           = document.getElementById('copy-btn');
+    const swapBtn           = document.getElementById('swap-btn');
+
+    // ─── Character counter ───────────────────────────────────────
+    inputText.addEventListener('input', () => {
+      charCount.textContent = `${inputText.value.length} / 2000`;
+    });
+
+    // ─── Tone pills ──────────────────────────────────────────────
+    pills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        pills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        selectedTone = pill.dataset.tone;
+        if (!useTone.checked) useTone.checked = true;
+      });
+    });
+
+    // Default active pill
+    document.querySelector('[data-tone="formal"]').classList.add('active');
+
+    // ─── Swap languages ──────────────────────────────────────────
+    swapBtn.addEventListener('click', () => {
+      const tmp = sourceLang.value;
+      sourceLang.value = targetLang.value;
+      targetLang.value = tmp;
+    });
+
+    // ─── Helpers ─────────────────────────────────────────────────
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorBox.classList.add('visible');
+    }
+
+    function hideError() {
+      errorBox.classList.remove('visible');
+    }
+
+    function setLoading(on) {
+      translateBtn.disabled = on;
+      loader.classList.toggle('visible', on);
+      if (on) outputSection.classList.remove('visible');
+    }
+
+    function showOutput(translatedText, pronunciation, label) {
+      outputLabel.textContent = label;
+      outputBox.textContent   = translatedText;
+
+      // Show or hide pronunciation block
+      if (pronunciation && pronunciation.trim()) {
+        pronunciationText.textContent = pronunciation.trim();
+        pronunciationWrap.classList.add('visible');
+        // When pronunciation is present, output-box gets flat bottom corners
+        outputBox.style.borderRadius = 'var(--radius) var(--radius) 0 0';
+      } else {
+        pronunciationWrap.classList.remove('visible');
+        outputBox.style.borderRadius = 'var(--radius)';
+      }
+
+      outputSection.classList.add('visible');
+    }
+
+    // ─── Main translate handler ──────────────────────────────────
+    translateBtn.addEventListener('click', async () => {
+      const text = inputText.value.trim();
+      const src  = sourceLang.value;
+      const tgt  = targetLang.value;
+      const tone = useTone.checked ? selectedTone : null;
+
+      hideError();
+
+      if (!text) {
+        showError('Please enter some text before translating.');
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        let translatedText, pronunciation, label;
+
+        // ── BONUS: same language → only apply tone (no translation) ──
+        if (src === tgt) {
+          if (tone) {
+            // tone-only using /api/tone, preserving the language
+            const res = await fetch(`${API_BASE}/api/tone`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text, tone, language: src }),
+            });
+            await handleHTTPError(res);
+            const data   = await res.json();
+            translatedText = data.converted_text;
+            pronunciation  = data.pronunciation;
+            label = `${src} · ${tone.charAt(0).toUpperCase() + tone.slice(1)} tone`;
+          } else {
+            // Same lang, no tone → just show original with pronunciation
+            const res = await fetch(`${API_BASE}/api/translate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text, source_lang: src, target_lang: tgt }),
+            });
+            await handleHTTPError(res);
+            const data   = await res.json();
+            translatedText = data.translated_text;
+            pronunciation  = data.pronunciation;
+            label = `${src} (pronunciation only)`;
+          }
+
+        // ── Translation + optional tone ───────────────────────────
+        } else if (tone) {
+          // Translate THEN apply tone IN target language
+          const res = await fetch(`${API_BASE}/api/translate-tone`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, source_lang: src, target_lang: tgt, tone }),
+          });
+          await handleHTTPError(res);
+          const data   = await res.json();
+          translatedText = data.output;
+          pronunciation  = data.pronunciation;
+          label = `${src} → ${tgt} · ${tone.charAt(0).toUpperCase() + tone.slice(1)} tone`;
+
+        } else {
+          // Translation only
+          const res = await fetch(`${API_BASE}/api/translate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, source_lang: src, target_lang: tgt }),
+          });
+          await handleHTTPError(res);
+          const data   = await res.json();
+          translatedText = data.translated_text;
+          pronunciation  = data.pronunciation;
+          label = `${src} → ${tgt}`;
+        }
+
+        showOutput(translatedText, pronunciation, label);
+
+      } catch (err) {
+        showError(err.message || 'Something went wrong. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    // ─── HTTP error handler ──────────────────────────────────────
+    async function handleHTTPError(res) {
+      if (!res.ok) {
+        let detail = `Server error (${res.status})`;
+        try {
+          const err = await res.json();
+          detail = err.detail || detail;
+        } catch (_) {}
+        throw new Error(detail);
+      }
+    }
+
+    // ─── Copy button ─────────────────────────────────────────────
+    copyBtn.addEventListener('click', async () => {
+      const text = outputBox.textContent;
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        copyBtn.innerHTML = `
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <path d="M2 7l3 3 6-6" stroke="#68d391" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg> Copied!`;
+        copyBtn.style.color = 'var(--success)';
+        setTimeout(() => {
+          copyBtn.innerHTML = `
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="4.5" y="4.5" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 8.5V2A1 1 0 012 1.5h6.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Copy`;
+          copyBtn.style.color = '';
+        }, 2000);
+      } catch (_) {
+        showError('Could not copy to clipboard.');
+      }
+    });
+  </script>
+</body>
+</html>
